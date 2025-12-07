@@ -1,0 +1,926 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Organizador Automático de PDFs</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        header {
+            background: rgba(255, 255, 255, 0.98);
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            color: #2d3748;
+            font-size: 2.5rem;
+            font-weight: 800;
+            margin-bottom: 10px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .subtitle {
+            color: #718096;
+            font-size: 1.1rem;
+        }
+
+        .auto-badge {
+            display: inline-block;
+            background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+            color: white;
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            margin-left: 15px;
+        }
+
+        .main-grid {
+            display: grid;
+            grid-template-columns: 350px 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.98);
+            border-radius: 16px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        .card h2 {
+            color: #2d3748;
+            font-size: 1.4rem;
+            margin-bottom: 20px;
+            font-weight: 700;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            width: 100%;
+            justify-content: center;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: #e2e8f0;
+            color: #2d3748;
+        }
+
+        .btn-auto {
+            background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+            color: white;
+            width: 100%;
+            justify-content: center;
+            margin-top: 15px;
+        }
+
+        .btn-auto:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(72, 187, 120, 0.4);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+            color: white;
+            width: 100%;
+            justify-content: center;
+            margin-top: 20px;
+            font-size: 1.1rem;
+            padding: 16px 24px;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        input[type="text"], textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 1rem;
+            margin-bottom: 12px;
+            transition: border-color 0.3s ease;
+        }
+
+        input[type="text"]:focus, textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 120px;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+        }
+
+        .checklist-selector select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 1rem;
+            cursor: pointer;
+            background: white;
+        }
+
+        .checklist-items {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-top: 15px;
+        }
+
+        .checklist-item {
+            background: #f7fafc;
+            padding: 12px 15px;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-left: 4px solid #667eea;
+        }
+
+        .upload-zone {
+            border: 3px dashed #cbd5e0;
+            border-radius: 12px;
+            padding: 60px 30px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: #f7fafc;
+            margin-bottom: 20px;
+        }
+
+        .upload-zone:hover {
+            border-color: #667eea;
+            background: #edf2f7;
+            transform: scale(1.02);
+        }
+
+        .pdf-list {
+            display: grid;
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .pdf-item {
+            background: white;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 15px;
+            transition: all 0.3s ease;
+        }
+
+        .pdf-item.auto-classified {
+            border-color: #48bb78;
+            background: #f0fff4;
+        }
+
+        .pdf-item.manual {
+            border-color: #ed8936;
+            background: #fffaf0;
+        }
+
+        .pdf-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 10px;
+        }
+
+        .pdf-name {
+            font-weight: 600;
+            color: #2d3748;
+            word-break: break-word;
+        }
+
+        .confidence-badge {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .confidence-high {
+            background: #c6f6d5;
+            color: #22543d;
+        }
+
+        .confidence-medium {
+            background: #feebc8;
+            color: #7c2d12;
+        }
+
+        .confidence-low {
+            background: #fed7d7;
+            color: #742a2a;
+        }
+
+        .confidence-manual {
+            background: #e2e8f0;
+            color: #2d3748;
+        }
+
+        .pdf-classification {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .classification-label {
+            padding: 8px 16px;
+            background: #667eea;
+            color: white;
+            border-radius: 8px;
+            font-weight: 600;
+            flex: 1;
+        }
+
+        .change-btn {
+            padding: 6px 12px;
+            background: #e2e8f0;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #2d3748;
+        }
+
+        .change-btn:hover {
+            background: #cbd5e0;
+        }
+
+        .keywords {
+            margin-top: 8px;
+            padding: 8px;
+            background: #f7fafc;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            color: #718096;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            border-radius: 12px;
+            color: white;
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 2rem;
+            font-weight: 800;
+            margin-bottom: 5px;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 16px;
+            padding: 30px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        select.doc-selector {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 1rem;
+            margin-top: 10px;
+        }
+
+        .alert {
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .alert.show {
+            display: block;
+        }
+
+        .alert-success {
+            background: #c6f6d5;
+            color: #22543d;
+            border-left: 4px solid #38a169;
+        }
+
+        .alert-error {
+            background: #fed7d7;
+            color: #742a2a;
+            border-left: 4px solid #e53e3e;
+        }
+
+        .loading-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .loading-overlay.active {
+            display: flex;
+        }
+
+        .loading-content {
+            background: white;
+            padding: 40px;
+            border-radius: 16px;
+            text-align: center;
+        }
+
+        .spinner {
+            border: 4px solid #e2e8f0;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @media (max-width: 1024px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🤖 Organizador Automático de PDFs<span class="auto-badge">✨ IA Automática</span></h1>
+            <p class="subtitle">Sistema inteligente que identifica automaticamente seus documentos</p>
+        </header>
+
+        <div id="alert" class="alert"></div>
+
+        <div class="main-grid">
+            <div class="card">
+                <h2>📝 Gerenciar Checklists</h2>
+                
+                <div class="checklist-selector">
+                    <select id="checklistSelect" onchange="loadChecklist()">
+                        <option value="">Selecione uma checklist...</option>
+                    </select>
+                </div>
+
+                <button class="btn btn-primary" onclick="openNewChecklistModal()">
+                    ➕ Nova Checklist
+                </button>
+
+                <button class="btn btn-secondary" style="width: 100%; margin-top: 10px;" onclick="openEditChecklistModal()" id="editChecklistBtn" disabled>
+                    ✏️ Editar Checklist
+                </button>
+
+                <div id="currentChecklistItems" class="checklist-items"></div>
+
+                <div class="stats">
+                    <div class="stat-card">
+                        <div class="stat-number" id="statFiles">0</div>
+                        <div class="stat-label">Arquivos</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="statAuto">0</div>
+                        <div class="stat-label">Auto</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="statReady">0%</div>
+                        <div class="stat-label">Completo</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>📂 Seus Documentos PDF</h2>
+                
+                <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()">
+                    <h3>🔼 Arraste seus PDFs aqui</h3>
+                    <p>O sistema identificará automaticamente cada documento</p>
+                    <input type="file" id="fileInput" accept=".pdf" multiple style="display: none;" onchange="handleFiles(this.files)">
+                </div>
+
+                <button class="btn btn-auto" onclick="autoClassifyAll()" id="autoClassifyBtn" disabled>
+                    🤖 Classificar Automaticamente
+                </button>
+
+                <div id="pdfList" class="pdf-list"></div>
+
+                <button class="btn btn-success" onclick="generateOrganizedFiles()" id="generateBtn" disabled>
+                    🚀 Gerar Arquivos Organizados
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="newChecklistModal">
+        <div class="modal-content">
+            <h2>📝 Nova Checklist</h2>
+            <input type="text" id="newChecklistName" placeholder="Nome da checklist">
+            <textarea id="newChecklistItems" placeholder="Digite os documentos (um por linha)&#10;&#10;Exemplo:&#10;Contrato Social&#10;RG do Sócio 1&#10;CPF do Sócio 1"></textarea>
+            <div style="display: flex; gap: 10px; margin-top: 20px;">
+                <button class="btn btn-primary" onclick="saveNewChecklist()">Salvar</button>
+                <button class="btn btn-secondary" onclick="closeModal('newChecklistModal')">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="editChecklistModal">
+        <div class="modal-content">
+            <h2>✏️ Editar Checklist</h2>
+            <input type="text" id="editChecklistName" placeholder="Nome da checklist">
+            <textarea id="editChecklistItems" placeholder="Digite os documentos (um por linha)"></textarea>
+            <div style="display: flex; gap: 10px; margin-top: 20px;">
+                <button class="btn btn-primary" onclick="saveEditChecklist()">Salvar</button>
+                <button class="btn btn-secondary" onclick="closeModal('editChecklistModal')">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="changeClassificationModal">
+        <div class="modal-content">
+            <h2>✏️ Alterar Classificação</h2>
+            <p style="margin-bottom: 10px; color: #718096;">Arquivo: <strong id="changeFileName"></strong></p>
+            <select id="changeDocSelector" class="doc-selector"></select>
+            <div style="display: flex; gap: 10px; margin-top: 20px;">
+                <button class="btn btn-primary" onclick="saveChangedClassification()">Salvar</button>
+                <button class="btn btn-secondary" onclick="closeModal('changeClassificationModal')">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-content">
+            <div class="spinner"></div>
+            <h3 style="color: #2d3748; margin-bottom: 10px;">Classificando documentos...</h3>
+            <p style="color: #718096;">Aguarde enquanto a IA analisa seus arquivos</p>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:5000';
+        let checklists = JSON.parse(localStorage.getItem('checklists') || '{}');
+        let currentChecklist = null;
+        let uploadedFiles = [];
+        let fileAssignments = {};
+        let currentChangeFileId = null;
+
+        function init() {
+            loadChecklistOptions();
+            if (Object.keys(checklists).length === 0) {
+                createSampleChecklists();
+            }
+        }
+
+        function createSampleChecklists() {
+            checklists = {
+                'Abertura de Empresa': [
+                    'Contrato Social',
+                    'RG do Sócio 1',
+                    'CPF do Sócio 1',
+                    'Comprovante de Residência',
+                    'Certidão Negativa'
+                ],
+                'Admissão de Funcionário': [
+                    'Carteira de Trabalho',
+                    'RG',
+                    'CPF',
+                    'Comprovante de Residência'
+                ]
+            };
+            saveChecklists();
+            loadChecklistOptions();
+        }
+
+        function saveChecklists() {
+            localStorage.setItem('checklists', JSON.stringify(checklists));
+        }
+
+        function loadChecklistOptions() {
+            const select = document.getElementById('checklistSelect');
+            select.innerHTML = '<option value="">Selecione uma checklist...</option>';
+            Object.keys(checklists).forEach(name => {
+                const option = document.createElement('option');
+                option.value = name;
+                option.textContent = name;
+                select.appendChild(option);
+            });
+        }
+
+        function loadChecklist() {
+            const select = document.getElementById('checklistSelect');
+            currentChecklist = select.value || null;
+            
+            if (!currentChecklist) {
+                document.getElementById('currentChecklistItems').innerHTML = '';
+                document.getElementById('editChecklistBtn').disabled = true;
+                return;
+            }
+
+            document.getElementById('editChecklistBtn').disabled = false;
+            const items = checklists[currentChecklist];
+            const container = document.getElementById('currentChecklistItems');
+            container.innerHTML = '';
+
+            items.forEach((item, index) => {
+                const div = document.createElement('div');
+                div.className = 'checklist-item';
+                div.innerHTML = `
+                    <span>${item}</span>
+                    <div class="number" style="background: #667eea; color: white; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700;">${String(index + 1).padStart(3, '0')}</div>
+                `;
+                container.appendChild(div);
+            });
+
+            updateStats();
+            updateButtons();
+        }
+
+        function openNewChecklistModal() {
+            document.getElementById('newChecklistName').value = '';
+            document.getElementById('newChecklistItems').value = '';
+            document.getElementById('newChecklistModal').classList.add('active');
+        }
+
+        function openEditChecklistModal() {
+            if (!currentChecklist) return;
+            document.getElementById('editChecklistName').value = currentChecklist;
+            document.getElementById('editChecklistItems').value = checklists[currentChecklist].join('\n');
+            document.getElementById('editChecklistModal').classList.add('active');
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.remove('active');
+        }
+
+        function saveNewChecklist() {
+            const name = document.getElementById('newChecklistName').value.trim();
+            const itemsText = document.getElementById('newChecklistItems').value.trim();
+            
+            if (!name || !itemsText) {
+                showAlert('Preencha todos os campos', 'error');
+                return;
+            }
+
+            const items = itemsText.split('\n').map(i => i.trim()).filter(i => i);
+            checklists[name] = items;
+            saveChecklists();
+            loadChecklistOptions();
+            closeModal('newChecklistModal');
+            document.getElementById('checklistSelect').value = name;
+            loadChecklist();
+            showAlert('Checklist criada!', 'success');
+        }
+
+        function saveEditChecklist() {
+            const oldName = currentChecklist;
+            const newName = document.getElementById('editChecklistName').value.trim();
+            const itemsText = document.getElementById('editChecklistItems').value.trim();
+            
+            if (!newName || !itemsText) {
+                showAlert('Preencha todos os campos', 'error');
+                return;
+            }
+
+            const items = itemsText.split('\n').map(i => i.trim()).filter(i => i);
+            if (oldName !== newName) delete checklists[oldName];
+            checklists[newName] = items;
+            saveChecklists();
+            loadChecklistOptions();
+            closeModal('editChecklistModal');
+            document.getElementById('checklistSelect').value = newName;
+            loadChecklist();
+            showAlert('Checklist atualizada!', 'success');
+        }
+
+        async function handleFiles(files) {
+            if (!currentChecklist) {
+                showAlert('Selecione uma checklist primeiro!', 'error');
+                return;
+            }
+
+            const pdfFiles = Array.from(files).filter(f => f.type === 'application/pdf');
+            if (pdfFiles.length === 0) {
+                showAlert('Selecione apenas arquivos PDF', 'error');
+                return;
+            }
+
+            uploadedFiles = [];
+            fileAssignments = {};
+            document.getElementById('pdfList').innerHTML = '';
+
+            for (const file of pdfFiles) {
+                uploadedFiles.push({
+                    id: Date.now() + '_' + Math.random(),
+                    file: file,
+                    name: file.name
+                });
+            }
+
+            updateStats();
+            autoClassifyAll();
+        }
+
+        async function autoClassifyAll() {
+            if (!currentChecklist || uploadedFiles.length === 0) return;
+
+            document.getElementById('loadingOverlay').classList.add('active');
+
+            const formData = new FormData();
+            uploadedFiles.forEach(f => formData.append('files', f.file));
+            formData.append('checklist_name', currentChecklist);
+            formData.append('checklist_items', JSON.stringify(checklists[currentChecklist]));
+
+            try {
+                const response = await fetch(`${API_URL}/api/upload`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    document.getElementById('pdfList').innerHTML = '';
+                    
+                    data.results.forEach(result => {
+                        const fileData = uploadedFiles.find(f => f.name === result.filename);
+                        if (fileData) {
+                            fileData.serverFileId = result.file_id;
+                            fileData.classification = result.doc_index;
+                            fileData.confidence = result.confidence;
+                            fileData.keywords = result.matched_keywords;
+                            fileData.isAuto = true;
+                            
+                            if (result.doc_index !== null) {
+                                fileAssignments[fileData.id] = result.doc_index;
+                            }
+                            
+                            addPdfToList(fileData);
+                        }
+                    });
+
+                    updateStats();
+                    updateButtons();
+                    showAlert(`${data.results.length} documentos classificados automaticamente!`, 'success');
+                } else {
+                    showAlert('Erro ao classificar: ' + data.error, 'error');
+                }
+            } catch (error) {
+                showAlert('Erro de conexão. Certifique-se que o servidor está rodando.', 'error');
+                console.error(error);
+            } finally {
+                document.getElementById('loadingOverlay').classList.remove('active');
+            }
+        }
+
+        function addPdfToList(fileData) {
+            const list = document.getElementById('pdfList');
+            const div = document.createElement('div');
+            div.className = 'pdf-item ' + (fileData.isAuto ? 'auto-classified' : 'manual');
+            div.dataset.id = fileData.id;
+
+            let confidenceClass = 'confidence-manual';
+            let confidenceText = 'Manual';
+            
+            if (fileData.confidence !== undefined) {
+                if (fileData.confidence >= 70) {
+                    confidenceClass = 'confidence-high';
+                    confidenceText = `${fileData.confidence}% Confiança`;
+                } else if (fileData.confidence >= 40) {
+                    confidenceClass = 'confidence-medium';
+                    confidenceText = `${fileData.confidence}% Confiança`;
+                } else {
+                    confidenceClass = 'confidence-low';
+                    confidenceText = `${fileData.confidence}% Confiança`;
+                }
+            }
+
+            let classificationHTML = '';
+            if (fileData.classification !== null && fileData.classification !== undefined) {
+                const docName = checklists[currentChecklist][fileData.classification];
+                const number = String(parseInt(fileData.classification) + 1).padStart(3, '0');
+                classificationHTML = `
+                    <div class="pdf-classification">
+                        <div class="classification-label">${number} - ${docName}</div>
+                        <button class="change-btn" onclick="openChangeClassification('${fileData.id}')">Alterar</button>
+                    </div>
+                `;
+            }
+
+            let keywordsHTML = '';
+            if (fileData.keywords && fileData.keywords.length > 0) {
+                keywordsHTML = `<div class="keywords">🔍 Palavras encontradas: ${fileData.keywords.join(', ')}</div>`;
+            }
+
+            div.innerHTML = `
+                <div class="pdf-header">
+                    <div class="pdf-name">${fileData.name}</div>
+                    <span class="confidence-badge ${confidenceClass}">${confidenceText}</span>
+                </div>
+                ${classificationHTML}
+                ${keywordsHTML}
+            `;
+
+            list.appendChild(div);
+        }
+
+        function openChangeClassification(fileId) {
+            currentChangeFileId = fileId;
+            const fileData = uploadedFiles.find(f => f.id === fileId);
+            
+            document.getElementById('changeFileName').textContent = fileData.name;
+            
+            const select = document.getElementById('changeDocSelector');
+            select.innerHTML = '<option value="">Selecione o tipo...</option>';
+            
+            checklists[currentChecklist].forEach((item, index) => {
+                const option = document.createElement('option');
+                option.value = index;
+                option.textContent = `${String(index + 1).padStart(3, '0')} - ${item}`;
+                if (fileData.classification == index) {
+                    option.selected = true;
+                }
+                select.appendChild(option);
+            });
+            
+            document.getElementById('changeClassificationModal').classList.add('active');
+        }
+
+        function saveChangedClassification() {
+            const newIndex = document.getElementById('changeDocSelector').value;
+            if (newIndex === '') {
+                showAlert('Selecione um tipo de documento', 'error');
+                return;
+            }
+
+            const fileData = uploadedFiles.find(f => f.id === currentChangeFileId);
+            fileData.classification = parseInt(newIndex);
+            fileData.isAuto = false;
+            fileAssignments[currentChangeFileId] = parseInt(newIndex);
+
+            document.querySelector(`[data-id="${currentChangeFileId}"]`).remove();
+            addPdfToList(fileData);
+
+            closeModal('changeClassificationModal');
+            updateStats();
+            updateButtons();
+            showAlert('Classificação alterada!', 'success');
+        }
+
+        async function generateOrganizedFiles() {
+            if (!currentChecklist || uploadedFiles.length === 0) return;
+
+            document.getElementById('loadingOverlay').classList.add('active');
+
+            const assignments = {};
+            uploadedFiles.forEach(f => {
+                if (f.serverFileId && f.classification !== null) {
+                    assignments[f.serverFileId] = f.classification;
+                }
+            });
+
+            try {
+                const response = await fetch(`${API_URL}/api/generate`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        checklist_name: currentChecklist,
+                        checklist_items: checklists[currentChecklist],
+                        assignments: assignments
+                    })
+                });
+
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${currentChecklist}_Organizado.zip`;
+                a.click();
+
+                showAlert('Arquivos organizados gerados com sucesso! 🎉', 'success');
+            } catch (error) {
+                showAlert('Erro ao gerar arquivos: ' + error.message, 'error');
+            } finally {
+                document.getElementById('loadingOverlay').classList.remove('active');
+            }
+        }
+
+        function updateStats() {
+            document.getElementById('statFiles').textContent = uploadedFiles.length;
+            
+            const autoCount = uploadedFiles.filter(f => f.isAuto && f.classification !== null).length;
+            document.getElementById('statAuto').textContent = autoCount;
+            
+            const assignedCount = Object.keys(fileAssignments).length;
+            const percentage = uploadedFiles.length > 0 ? Math.round((assignedCount / uploadedFiles.length) * 100) : 0;
+            document.getElementById('statReady').textContent = percentage + '%';
+        }
+
+        function updateButtons() {
+            const hasChecklist = currentChecklist !== null;
+            const hasFiles = uploadedFiles.length > 0;
+            const allAssigned = hasFiles && Object.keys(fileAssignments).length === uploadedFiles.length;
+
+            document.getElementById('autoClassifyBtn').disabled = !(hasChecklist && hasFiles);
+            document.getElementById('generateBtn').disabled = !(hasChecklist && allAssigned);
+        }
+
+        function showAlert(message, type) {
+            const alert = document.getElementById('alert');
+            alert.textContent = message;
+            alert.className = `alert alert-${type} show`;
+            setTimeout(() => alert.classList.remove('show'), 5000);
+        }
+
+        init();
+    </script>
+</body>
+</html>
